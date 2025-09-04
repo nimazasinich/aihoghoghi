@@ -5,7 +5,7 @@ import os
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 import asyncio
-from contextlib asynccontextmanager
+from contextlib import asynccontextmanager
 import logging
 
 class DocumentDatabase:
@@ -227,15 +227,27 @@ class DocumentDatabase:
             total_count = conn.execute(count_query, params).fetchone()[0]
             
             # Fetch paginated results
-            search_query = f"""
-                SELECT d.id, d.url, d.title, d.content, d.source, d.category, 
-                       d.entities, d.sentiment, d.confidence, d.scraped_at, d.metadata,
-                       {f'rank' if query else '0'} as search_rank
-                FROM documents d
-                WHERE {where_clause}
-                ORDER BY {order_clause}
-                LIMIT ? OFFSET ?
-            """
+            if query:
+                search_query = f"""
+                    SELECT d.id, d.url, d.title, d.content, d.source, d.category, 
+                           d.entities, d.sentiment, d.confidence, d.scraped_at, d.metadata,
+                           fts.rank as search_rank
+                    FROM documents d
+                    JOIN documents_fts fts ON d.id = fts.rowid
+                    WHERE {where_clause}
+                    ORDER BY fts.rank
+                    LIMIT ? OFFSET ?
+                """
+            else:
+                search_query = f"""
+                    SELECT d.id, d.url, d.title, d.content, d.source, d.category, 
+                           d.entities, d.sentiment, d.confidence, d.scraped_at, d.metadata,
+                           0 as search_rank
+                    FROM documents d
+                    WHERE {where_clause}
+                    ORDER BY {order_clause}
+                    LIMIT ? OFFSET ?
+                """
             
             results = conn.execute(search_query, params + [limit, offset]).fetchall()
             

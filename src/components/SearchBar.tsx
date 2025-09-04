@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Search, Filter, Calendar, X } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Search, Filter, Calendar, X, Sparkles, Lightbulb, TrendingUp } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import type { SearchFilters } from '../types';
 
@@ -20,6 +20,43 @@ export const SearchBar: React.FC<SearchBarProps> = ({
 }) => {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [localFilters, setLocalFilters] = useState(filters);
+  const [aiSuggestions, setAiSuggestions] = useState<string[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [trendingSearches, setTrendingSearches] = useState<string[]>([]);
+
+  // AI-powered search suggestions
+  useEffect(() => {
+    if (localFilters.query && localFilters.query.length > 2) {
+      // Simulate AI suggestions based on query
+      const suggestions = generateAISuggestions(localFilters.query);
+      setAiSuggestions(suggestions);
+      setShowSuggestions(true);
+    } else {
+      setShowSuggestions(false);
+    }
+  }, [localFilters.query]);
+
+  // Load trending searches
+  useEffect(() => {
+    setTrendingSearches([
+      'قانون اساسی جمهوری اسلامی ایران',
+      'آیین‌نامه استخدامی',
+      'رأی دیوان عدالت اداری',
+      'مصوبات مجلس شورای اسلامی',
+      'بخشنامه‌های وزارتخانه‌ها'
+    ]);
+  }, []);
+
+  const generateAISuggestions = (query: string): string[] => {
+    const baseSuggestions = [
+      `${query} در قانون اساسی`,
+      `${query} در آیین‌نامه‌ها`,
+      `${query} در آرای قضایی`,
+      `${query} در مصوبات مجلس`,
+      `${query} در بخشنامه‌ها`
+    ];
+    return baseSuggestions.slice(0, 3);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,14 +79,15 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   return (
     <div className="bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden">
       <form onSubmit={handleSubmit} className="p-6">
-        {/* Main search input */}
+        {/* Main search input with AI assistance */}
         <div className="relative mb-4">
           <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
           <input
             type="text"
-            placeholder="جستجو در اسناد حقوقی..."
+            placeholder="جستجو در اسناد حقوقی با کمک هوش مصنوعی..."
             value={localFilters.query}
             onChange={(e) => updateFilter('query', e.target.value)}
+            onFocus={() => setShowSuggestions(true)}
             className="w-full pl-12 pr-4 py-4 text-lg border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-right"
             dir="rtl"
           />
@@ -62,6 +100,62 @@ export const SearchBar: React.FC<SearchBarProps> = ({
               <X className="w-5 h-5" />
             </button>
           )}
+          
+          {/* AI Suggestions Dropdown */}
+          <AnimatePresence>
+            {showSuggestions && (aiSuggestions.length > 0 || trendingSearches.length > 0) && (
+              <motion.div
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-200 rounded-lg shadow-lg z-50 max-h-80 overflow-y-auto"
+              >
+                {aiSuggestions.length > 0 && (
+                  <div className="p-3 border-b border-gray-100">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Sparkles className="w-4 h-4 text-blue-600" />
+                      <span className="text-sm font-medium text-gray-700">پیشنهادات هوش مصنوعی</span>
+                    </div>
+                    {aiSuggestions.map((suggestion, index) => (
+                      <button
+                        key={index}
+                        type="button"
+                        onClick={() => {
+                          updateFilter('query', suggestion);
+                          setShowSuggestions(false);
+                        }}
+                        className="w-full text-right p-2 hover:bg-gray-50 rounded text-sm text-gray-700"
+                      >
+                        {suggestion}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                
+                {trendingSearches.length > 0 && (
+                  <div className="p-3">
+                    <div className="flex items-center gap-2 mb-2">
+                      <TrendingUp className="w-4 h-4 text-green-600" />
+                      <span className="text-sm font-medium text-gray-700">جستجوهای پرطرفدار</span>
+                    </div>
+                    {trendingSearches.map((trend, index) => (
+                      <button
+                        key={index}
+                        type="button"
+                        onClick={() => {
+                          updateFilter('query', trend);
+                          setShowSuggestions(false);
+                        }}
+                        className="w-full text-right p-2 hover:bg-gray-50 rounded text-sm text-gray-700"
+                      >
+                        {trend}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
 
         {/* Search actions */}

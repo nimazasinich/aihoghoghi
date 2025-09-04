@@ -1,12 +1,38 @@
-import React from 'react';
-import { Play, Pause, RefreshCw, AlertCircle, CheckCircle, Globe } from 'lucide-react';
-import { motion } from 'framer-motion';
+import React, { useState, useEffect } from 'react';
+import { Play, Pause, RefreshCw, AlertCircle, CheckCircle, Globe, Activity, Database, Zap, TrendingUp } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useScrapingStatus, useStartScraping, useStopScraping } from '../hooks/useDocuments';
 
 export const ScrapingStatus: React.FC = () => {
   const { data: status, isLoading } = useScrapingStatus();
   const startScraping = useStartScraping();
   const stopScraping = useStopScraping();
+  const [realTimeUpdates, setRealTimeUpdates] = useState<any[]>([]);
+  const [wsConnected, setWsConnected] = useState(false);
+
+  useEffect(() => {
+    // WebSocket connection for real-time scraping updates
+    const ws = new WebSocket('ws://localhost:8000/ws');
+    
+    ws.onopen = () => {
+      setWsConnected(true);
+      console.log('Scraping WebSocket connected');
+    };
+    
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (data.type === 'scraping_update') {
+        setRealTimeUpdates(prev => [data.data, ...prev.slice(0, 9)]); // Keep last 10 updates
+      }
+    };
+    
+    ws.onclose = () => {
+      setWsConnected(false);
+      console.log('Scraping WebSocket disconnected');
+    };
+    
+    return () => ws.close();
+  }, []);
 
   const handleStartScraping = () => {
     const defaultUrls = [
@@ -158,8 +184,90 @@ export const ScrapingStatus: React.FC = () => {
         {/* Last update */}
         <div className="mt-4 text-center">
           <p className="text-xs text-gray-500">
-            آخرین بروزرسانی: {formatDistanceToNow(new Date(status.lastUpdate), { addSuffix: true, locale: fa })}
+            آخرین بروزرسانی: {new Date(status.lastUpdate).toLocaleString('fa-IR')}
           </p>
+        </div>
+      </div>
+
+      {/* Real-time Updates Section */}
+      <div className="border-t border-gray-100 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <Activity className="w-5 h-5 text-blue-600" />
+            <h3 className="text-lg font-semibold text-gray-900">به‌روزرسانی‌های لحظه‌ای</h3>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className={`w-2 h-2 rounded-full ${wsConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+            <span className="text-sm text-gray-600">
+              {wsConnected ? 'متصل' : 'قطع'}
+            </span>
+          </div>
+        </div>
+
+        <div className="space-y-3 max-h-64 overflow-y-auto">
+          <AnimatePresence>
+            {realTimeUpdates.length > 0 ? (
+              realTimeUpdates.map((update, index) => (
+                <motion.div
+                  key={index}
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                  className={`p-3 rounded-lg border ${
+                    update.status === 'completed' ? 'bg-green-50 border-green-200' :
+                    update.status === 'error' ? 'bg-red-50 border-red-200' :
+                    'bg-blue-50 border-blue-200'
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className={`p-1 rounded-full ${
+                      update.status === 'completed' ? 'bg-green-100' :
+                      update.status === 'error' ? 'bg-red-100' :
+                      'bg-blue-100'
+                    }`}>
+                      {update.status === 'completed' ? (
+                        <CheckCircle className="w-4 h-4 text-green-600" />
+                      ) : update.status === 'error' ? (
+                        <AlertCircle className="w-4 h-4 text-red-600" />
+                      ) : (
+                        <Activity className="w-4 h-4 text-blue-600" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium text-gray-900">
+                        {update.status === 'completed' ? 'سند پردازش شد' :
+                         update.status === 'error' ? 'خطا در پردازش' :
+                         'در حال پردازش'}
+                      </div>
+                      {update.title && (
+                        <div className="text-sm text-gray-600 truncate">
+                          {update.title}
+                        </div>
+                      )}
+                      {update.url && (
+                        <div className="text-xs text-gray-500 font-mono truncate">
+                          {update.url}
+                        </div>
+                      )}
+                      {update.error && (
+                        <div className="text-xs text-red-600">
+                          {update.error}
+                        </div>
+                      )}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {new Date().toLocaleTimeString('fa-IR')}
+                    </div>
+                  </div>
+                </motion.div>
+              ))
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                <Database className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                <p>هیچ به‌روزرسانی لحظه‌ای وجود ندارد</p>
+              </div>
+            )}
+          </AnimatePresence>
         </div>
       </div>
     </div>
