@@ -2,26 +2,71 @@ import { expect, afterEach, vi } from 'vitest';
 import { cleanup } from '@testing-library/react';
 import * as matchers from '@testing-library/jest-dom/matchers';
 
+// Import our enhanced testing utilities
+import { persianTextMatchers } from './utils/persianTextMatchers';
+import { webSocketMockFactory } from './utils/webSocketMockFactory';
+import { aiServiceMockFactory } from './utils/aiServiceMockResponses';
+import { databaseMockFactory } from './utils/databaseMockUtilities';
+
 // Extend Vitest's expect with jest-dom matchers
 expect.extend(matchers);
+
+// Extend expect with our custom Persian text matchers
+expect.extend(persianTextMatchers);
 
 // Cleanup after each test
 afterEach(() => {
   cleanup();
+  
+  // Cleanup our mock factories
+  webSocketMockFactory.cleanup();
+  databaseMockFactory.resetMockData();
 });
 
-// Setup jsdom environment
+// Setup jsdom environment - ensure it's available for all tests
 import { JSDOM } from 'jsdom';
 
-const dom = new JSDOM('<!DOCTYPE html><html><body></body></html>', {
-  url: 'http://localhost',
-  pretendToBeVisual: true,
-  resources: 'usable'
-});
+// Only set up JSDOM if not already available
+if (typeof global.document === 'undefined') {
+  const dom = new JSDOM('<!DOCTYPE html><html><body></body></html>', {
+    url: 'http://localhost',
+    pretendToBeVisual: true,
+    resources: 'usable'
+  });
 
-global.window = dom.window as any;
-global.document = dom.window.document;
-global.navigator = dom.window.navigator;
+  // Set up global DOM objects
+  global.window = dom.window as any;
+  global.document = dom.window.document;
+  global.navigator = dom.window.navigator;
+
+  // Ensure document is available globally
+  Object.defineProperty(global, 'document', {
+    value: dom.window.document,
+    writable: true
+  });
+
+  Object.defineProperty(global, 'window', {
+    value: dom.window,
+    writable: true
+  });
+
+  Object.defineProperty(global, 'navigator', {
+    value: dom.window.navigator,
+    writable: true
+  });
+
+  // Ensure HTMLElement is available
+  Object.defineProperty(global, 'HTMLElement', {
+    value: dom.window.HTMLElement,
+    writable: true
+  });
+
+  // Ensure Element is available
+  Object.defineProperty(global, 'Element', {
+    value: dom.window.Element,
+    writable: true
+  });
+}
 
 // Mock WebSocket
 global.WebSocket = vi.fn().mockImplementation(() => ({
