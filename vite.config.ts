@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
-  base: '/',
+  base: process.env.NODE_ENV === 'production' ? '/Aihoghoghi/' : '/',
   optimizeDeps: {
     exclude: ['lucide-react'],
   },
@@ -25,6 +25,6 @@ export default defineConfig({
       }
     },
     sourcemap: false,
-    minify: 'terser',
+    minify: 'esbuild',
   }
 });

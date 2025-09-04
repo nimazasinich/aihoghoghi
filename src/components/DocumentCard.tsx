@@ -2,7 +2,7 @@ import React from 'react';
 import { Calendar, ExternalLink, Hash, FileText } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { formatDistanceToNow } from 'date-fns';
-import { fa } from 'date-fns/locale';
+import { faIR } from 'date-fns/locale';
 import type { Document } from '../types';
 
 interface DocumentCardProps {
@@ -106,7 +106,7 @@ export const DocumentCard: React.FC<DocumentCardProps> = ({
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-1">
               <Calendar className="w-4 h-4" />
-              <span>{formatDistanceToNow(new Date(document.scraped_at), { addSuffix: true, locale: fa })}</span>
+              <span>{formatDistanceToNow(new Date(document.scraped_at), { addSuffix: true, locale: faIR })}</span>
             </div>
             <div className="flex items-center gap-1">
               <FileText className="w-4 h-4" />

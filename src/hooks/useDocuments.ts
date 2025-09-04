@@ -259,3 +259,84 @@ export function useDocumentAnalysis(documentId: string) {
     analyzeDocument
   };
 }
+
+/**
+ * Hook for scraping status
+ */
+export function useScrapingStatus() {
+  const [status, setStatus] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchScrapingStatus();
+  }, []);
+
+  const fetchScrapingStatus = async () => {
+    try {
+      const response = await apiService.get('/api/scraping/status');
+      setStatus(response.data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'خطا در بارگذاری وضعیت جمع‌آوری');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return {
+    data: status,
+    isLoading: loading,
+    error,
+    refetch: fetchScrapingStatus
+  };
+}
+
+/**
+ * Hook for starting scraping
+ */
+export function useStartScraping() {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const startScraping = async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await apiService.post('/api/scraping/start');
+      return response.data;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'خطا در شروع جمع‌آوری');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return startScraping;
+}
+
+/**
+ * Hook for stopping scraping
+ */
+export function useStopScraping() {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const stopScraping = async () => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await apiService.post('/api/scraping/stop');
+      return response.data;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'خطا در توقف جمع‌آوری');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return stopScraping;
+}
