@@ -1,380 +1,585 @@
+/**
+ * Database Mock Utilities
+ * Comprehensive database mocking for testing without real database connections
+ */
+
 import { vi } from 'vitest';
 
-export interface DatabaseMockOptions {
-  delay?: number;
-  shouldFail?: boolean;
-  customResponses?: Record<string, any>;
+export interface MockDocument {
+  id: string;
+  title: string;
+  content: string;
+  category: string;
+  source: string;
+  url: string;
+  created_at: string;
+  updated_at: string;
+  metadata: {
+    language: string;
+    confidence: number;
+    tags: string[];
+    entities: Array<{
+      text: string;
+      type: string;
+      confidence: number;
+    }>;
+  };
 }
 
-export interface QueryResult {
-  rows: any[];
-  rowCount: number;
-  fields: Array<{name: string, type: string}>;
+export interface MockUser {
+  id: string;
+  username: string;
+  email: string;
+  role: 'admin' | 'lawyer' | 'researcher' | 'viewer';
+  created_at: string;
+  last_login: string;
+  preferences: {
+    language: string;
+    theme: string;
+    notifications: boolean;
+  };
 }
 
-export interface TransactionResult {
-  success: boolean;
-  results: QueryResult[];
-  error?: string;
+export interface MockSearchResult {
+  documents: MockDocument[];
+  total: number;
+  page: number;
+  per_page: number;
+  query: string;
+  filters: any;
+  execution_time: number;
 }
 
-// Database Mock Class
-export class DatabaseMock {
-  private delay: number;
-  private shouldFail: boolean;
-  private customResponses: Record<string, any>;
-  private queryHistory: Array<{query: string, params: any[], timestamp: Date}> = [];
-  private connectionCount: number = 0;
-  
-  constructor(options: DatabaseMockOptions = {}) {
-    this.delay = options.delay || 50;
-    this.shouldFail = options.shouldFail || false;
-    this.customResponses = options.customResponses || {};
-    this.setupDefaultResponses();
-  }
-  
-  private setupDefaultResponses() {
-    // Default responses for common queries
-    this.customResponses = {
-      'SELECT * FROM documents': {
-        rows: [
-          {
-            id: '1',
-            title: 'قانون مدنی',
-            content: 'متن قانون مدنی',
-            category: 'قانون مدنی',
-            source: 'قوه قضائیه',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          },
-          {
-            id: '2',
-            title: 'قانون تجارت',
-            content: 'متن قانون تجارت',
-            category: 'قانون تجارت',
-            source: 'قوه قضائیه',
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
+// Sample mock data
+export const mockData = {
+  documents: [
+    {
+      id: 'doc_001',
+      title: 'قانون اساسی جمهوری اسلامی ایران',
+      content: 'ماده ۱: حکومت ایران جمهوری اسلامی است که ملت ایران، بر اساس اعتقاد دیرینه اش به حکومت حق و عدل قرآن...',
+      category: 'قانون اساسی',
+      source: 'قوه قضائیه',
+      url: 'https://example.com/constitution',
+      created_at: '2024-01-01T00:00:00Z',
+      updated_at: '2024-01-01T00:00:00Z',
+      metadata: {
+        language: 'fa',
+        confidence: 0.95,
+        tags: ['قانون اساسی', 'جمهوری اسلامی', 'ایران'],
+        entities: [
+          { text: 'جمهوری اسلامی ایران', type: 'COUNTRY', confidence: 0.98 },
+          { text: 'قانون اساسی', type: 'LEGAL_DOCUMENT', confidence: 0.95 }
+        ]
+      }
+    } as MockDocument,
+    {
+      id: 'doc_002',
+      title: 'ماده ۱ قانون مدنی',
+      content: 'مصوبات مجلس شورای اسلامی پس از طی مراحل قانونی به رئیس جمهور ابلاغ می\u200cگردد...',
+      category: 'قانون مدنی',
+      source: 'مجلس شورای اسلامی',
+      url: 'https://example.com/civil-law',
+      created_at: '2024-01-02T00:00:00Z',
+      updated_at: '2024-01-02T00:00:00Z',
+      metadata: {
+        language: 'fa',
+        confidence: 0.92,
+        tags: ['قانون مدنی', 'مجلس', 'رئیس جمهور'],
+        entities: [
+          { text: 'مجلس شورای اسلامی', type: 'ORGANIZATION', confidence: 0.90 },
+          { text: 'رئیس جمهور', type: 'PERSON', confidence: 0.85 }
+        ]
+      }
+    } as MockDocument,
+    {
+      id: 'doc_003',
+      title: 'قانون مجازات اسلامی',
+      content: 'ماده ۱: هر فعل یا ترک فعلی که در قانون برای آن مجازات تعیین شده باشد، جرم محسوب می\u200cشود...',
+      category: 'قانون مجازات',
+      source: 'قوه قضائیه',
+      url: 'https://example.com/criminal-law',
+      created_at: '2024-01-03T00:00:00Z',
+      updated_at: '2024-01-03T00:00:00Z',
+      metadata: {
+        language: 'fa',
+        confidence: 0.89,
+        tags: ['قانون مجازات', 'جرم', 'مجازات'],
+        entities: [
+          { text: 'قانون مجازات اسلامی', type: 'LEGAL_DOCUMENT', confidence: 0.89 },
+          { text: 'جرم', type: 'LEGAL_CONCEPT', confidence: 0.85 }
+        ]
+      }
+    } as MockDocument
+  ],
+
+  users: [
+    {
+      id: 'user_001',
+      username: 'admin',
+      email: 'admin@legal-archive.ir',
+      role: 'admin',
+      created_at: '2024-01-01T00:00:00Z',
+      last_login: '2024-01-15T10:30:00Z',
+      preferences: {
+        language: 'fa',
+        theme: 'light',
+        notifications: true
+      }
+    } as MockUser,
+    {
+      id: 'user_002',
+      username: 'lawyer_ahmad',
+      email: 'ahmad@lawfirm.ir',
+      role: 'lawyer',
+      created_at: '2024-01-02T00:00:00Z',
+      last_login: '2024-01-15T09:15:00Z',
+      preferences: {
+        language: 'fa',
+        theme: 'dark',
+        notifications: true
+      }
+    } as MockUser,
+    {
+      id: 'user_003',
+      username: 'researcher_fatemeh',
+      email: 'fatemeh@university.ac.ir',
+      role: 'researcher',
+      created_at: '2024-01-03T00:00:00Z',
+      last_login: '2024-01-15T08:45:00Z',
+      preferences: {
+        language: 'fa',
+        theme: 'light',
+        notifications: false
+      }
+    } as MockUser
+  ]
+};
+
+// Database mock factory
+export const createDatabaseMock = () => {
+  let documents = [...mockData.documents];
+  let users = [...mockData.users];
+  let searchHistory: any[] = [];
+
+  const mockDB = {
+    // Document operations
+    documents: {
+      // Get all documents
+      getAll: vi.fn().mockImplementation(async (options?: any) => {
+        await new Promise(resolve => setTimeout(resolve, 50));
+        return {
+          success: true,
+          data: documents,
+          total: documents.length,
+          page: options?.page || 1,
+          per_page: options?.per_page || 10
+        };
+      }),
+
+      // Get document by ID
+      getById: vi.fn().mockImplementation(async (id: string) => {
+        await new Promise(resolve => setTimeout(resolve, 30));
+        const document = documents.find(doc => doc.id === id);
+        return {
+          success: !!document,
+          data: document || null,
+          error: document ? null : 'Document not found'
+        };
+      }),
+
+      // Search documents
+      search: vi.fn().mockImplementation(async (query: string, options?: any) => {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        // Simple search implementation
+        const filteredDocs = documents.filter(doc => 
+          doc.title.includes(query) || 
+          doc.content.includes(query) ||
+          doc.category.includes(query)
+        );
+
+        // Apply pagination
+        const page = options?.page || 1;
+        const per_page = options?.per_page || 10;
+        const start = (page - 1) * per_page;
+        const end = start + per_page;
+        const paginatedDocs = filteredDocs.slice(start, end);
+
+        // Log search
+        searchHistory.push({
+          query,
+          results_count: filteredDocs.length,
+          timestamp: new Date().toISOString()
+        });
+
+        return {
+          success: true,
+          data: {
+            documents: paginatedDocs,
+            total: filteredDocs.length,
+            page,
+            per_page,
+            query,
+            filters: options?.filters || {},
+            execution_time: 100
+          } as MockSearchResult
+        };
+      }),
+
+      // Create document
+      create: vi.fn().mockImplementation(async (documentData: Partial<MockDocument>) => {
+        await new Promise(resolve => setTimeout(resolve, 80));
+        
+        const newDocument: MockDocument = {
+          id: `doc_${Date.now()}`,
+          title: documentData.title || 'Untitled Document',
+          content: documentData.content || '',
+          category: documentData.category || 'General',
+          source: documentData.source || 'Unknown',
+          url: documentData.url || '',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          metadata: documentData.metadata || {
+            language: 'fa',
+            confidence: 0.0,
+            tags: [],
+            entities: []
           }
-        ],
-        rowCount: 2,
-        fields: [
-          { name: 'id', type: 'varchar' },
-          { name: 'title', type: 'varchar' },
-          { name: 'content', type: 'text' },
-          { name: 'category', type: 'varchar' },
-          { name: 'source', type: 'varchar' },
-          { name: 'created_at', type: 'timestamp' },
-          { name: 'updated_at', type: 'timestamp' }
-        ]
-      },
-      
-      'SELECT * FROM categories': {
-        rows: [
-          { id: '1', name: 'قانون مدنی', count: 150 },
-          { id: '2', name: 'قانون تجارت', count: 120 },
-          { id: '3', name: 'قانون کار', count: 80 }
-        ],
-        rowCount: 3,
-        fields: [
-          { name: 'id', type: 'varchar' },
-          { name: 'name', type: 'varchar' },
-          { name: 'count', type: 'integer' }
-        ]
-      },
-      
-      'SELECT * FROM sources': {
-        rows: [
-          { id: '1', name: 'قوه قضائیه', url: 'https://judiciary.ir', reliability: 0.95 },
-          { id: '2', name: 'مجلس شورای اسلامی', url: 'https://majlis.ir', reliability: 0.90 }
-        ],
-        rowCount: 2,
-        fields: [
-          { name: 'id', type: 'varchar' },
-          { name: 'name', type: 'varchar' },
-          { name: 'url', type: 'varchar' },
-          { name: 'reliability', type: 'float' }
-        ]
-      }
-    };
-  }
-  
-  // Mock connection
-  async connect(): Promise<DatabaseMock> {
-    await this.simulateDelay();
-    this.connectionCount++;
-    
-    if (this.shouldFail) {
-      throw new Error('Database connection failed');
-    }
-    
-    return this;
-  }
-  
-  // Mock query execution
-  async query(sql: string, params: any[] = []): Promise<QueryResult> {
-    await this.simulateDelay();
-    
-    // Record query for testing
-    this.queryHistory.push({
-      query: sql,
-      params,
-      timestamp: new Date()
-    });
-    
-    if (this.shouldFail) {
-      throw new Error(`Query failed: ${sql}`);
-    }
-    
-    // Check for custom response
-    const normalizedQuery = sql.trim().toUpperCase();
-    for (const [pattern, response] of Object.entries(this.customResponses)) {
-      if (normalizedQuery.includes(pattern.toUpperCase())) {
-        return response;
-      }
-    }
-    
-    // Default response
-    return {
-      rows: [],
-      rowCount: 0,
-      fields: []
-    };
-  }
-  
-  // Mock transaction
-  async transaction<T>(callback: (client: DatabaseMock) => Promise<T>): Promise<T> {
-    await this.simulateDelay();
-    
-    if (this.shouldFail) {
-      throw new Error('Transaction failed');
-    }
-    
-    try {
-      const result = await callback(this);
-      return result;
-    } catch (error) {
-      throw error;
-    }
-  }
-  
-  // Mock batch operations
-  async batch(queries: Array<{sql: string, params: any[]}>): Promise<QueryResult[]> {
-    await this.simulateDelay();
-    
-    if (this.shouldFail) {
-      throw new Error('Batch operation failed');
-    }
-    
-    const results: QueryResult[] = [];
-    for (const query of queries) {
-      const result = await this.query(query.sql, query.params);
-      results.push(result);
-    }
-    
-    return results;
-  }
-  
-  // Mock close connection
-  async close(): Promise<void> {
-    await this.simulateDelay();
-    this.connectionCount = Math.max(0, this.connectionCount - 1);
-  }
-  
-  // Mock health check
-  async healthCheck(): Promise<{status: string, uptime: number, connections: number}> {
-    await this.simulateDelay();
-    
-    return {
-      status: this.shouldFail ? 'unhealthy' : 'healthy',
-      uptime: Date.now(),
-      connections: this.connectionCount
-    };
-  }
-  
-  // Utility methods
-  private async simulateDelay(): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, this.delay));
-  }
-  
-  // Testing utilities
-  getQueryHistory(): Array<{query: string, params: any[], timestamp: Date}> {
-    return [...this.queryHistory];
-  }
-  
-  clearQueryHistory(): void {
-    this.queryHistory = [];
-  }
-  
-  getConnectionCount(): number {
-    return this.connectionCount;
-  }
-  
-  setCustomResponse(query: string, response: QueryResult): void {
-    this.customResponses[query] = response;
-  }
-  
-  setShouldFail(shouldFail: boolean): void {
-    this.shouldFail = shouldFail;
-  }
-  
-  setDelay(delay: number): void {
-    this.delay = delay;
-  }
-}
+        };
 
-// Database Mock Factory
-export const createDatabaseMock = (options: DatabaseMockOptions = {}): DatabaseMock => {
-  return new DatabaseMock(options);
-};
+        documents.push(newDocument);
+        
+        return {
+          success: true,
+          data: newDocument
+        };
+      }),
 
-// Database Testing Utilities
-export const databaseTestUtils = {
-  // Create mock with specific responses
-  createMockWithResponses: (responses: Record<string, QueryResult>) => {
-    const mock = createDatabaseMock({ customResponses: responses });
-    return mock;
-  },
-  
-  // Test query performance
-  testQueryPerformance: async (mock: DatabaseMock, queries: Array<{sql: string, params: any[]}>) => {
-    const results = [];
-    for (const query of queries) {
-      const start = performance.now();
-      const result = await mock.query(query.sql, query.params);
-      const end = performance.now();
-      
-      results.push({
-        query: query.sql,
-        duration: end - start,
-        rowCount: result.rowCount,
-        success: true
-      });
-    }
-    return results;
-  },
-  
-  // Test transaction handling
-  testTransaction: async (mock: DatabaseMock, operations: Array<{sql: string, params: any[]}>) => {
-    try {
-      const result = await mock.transaction(async (client) => {
-        const results = [];
-        for (const operation of operations) {
-          const queryResult = await client.query(operation.sql, operation.params);
-          results.push(queryResult);
+      // Update document
+      update: vi.fn().mockImplementation(async (id: string, updates: Partial<MockDocument>) => {
+        await new Promise(resolve => setTimeout(resolve, 60));
+        
+        const index = documents.findIndex(doc => doc.id === id);
+        if (index === -1) {
+          return {
+            success: false,
+            error: 'Document not found'
+          };
         }
-        return results;
-      });
-      
-      return {
-        success: true,
-        results,
-        error: null
-      };
-    } catch (error) {
-      return {
-        success: false,
-        results: [],
-        error: error.message
-      };
+
+        documents[index] = {
+          ...documents[index],
+          ...updates,
+          updated_at: new Date().toISOString()
+        };
+
+        return {
+          success: true,
+          data: documents[index]
+        };
+      }),
+
+      // Delete document
+      delete: vi.fn().mockImplementation(async (id: string) => {
+        await new Promise(resolve => setTimeout(resolve, 40));
+        
+        const index = documents.findIndex(doc => doc.id === id);
+        if (index === -1) {
+          return {
+            success: false,
+            error: 'Document not found'
+          };
+        }
+
+        const deletedDoc = documents.splice(index, 1)[0];
+        
+        return {
+          success: true,
+          data: deletedDoc
+        };
+      }),
+
+      // Get documents by category
+      getByCategory: vi.fn().mockImplementation(async (category: string) => {
+        await new Promise(resolve => setTimeout(resolve, 50));
+        
+        const filteredDocs = documents.filter(doc => doc.category === category);
+        
+        return {
+          success: true,
+          data: filteredDocs,
+          total: filteredDocs.length
+        };
+      }),
+
+      // Get document statistics
+      getStats: vi.fn().mockImplementation(async () => {
+        await new Promise(resolve => setTimeout(resolve, 30));
+        
+        const stats = {
+          total_documents: documents.length,
+          categories: [...new Set(documents.map(doc => doc.category))],
+          sources: [...new Set(documents.map(doc => doc.source))],
+          recent_documents: documents
+            .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+            .slice(0, 5)
+        };
+
+        return {
+          success: true,
+          data: stats
+        };
+      })
+    },
+
+    // User operations
+    users: {
+      // Get all users
+      getAll: vi.fn().mockImplementation(async () => {
+        await new Promise(resolve => setTimeout(resolve, 40));
+        return {
+          success: true,
+          data: users,
+          total: users.length
+        };
+      }),
+
+      // Get user by ID
+      getById: vi.fn().mockImplementation(async (id: string) => {
+        await new Promise(resolve => setTimeout(resolve, 30));
+        const user = users.find(u => u.id === id);
+        return {
+          success: !!user,
+          data: user || null,
+          error: user ? null : 'User not found'
+        };
+      }),
+
+      // Get user by email
+      getByEmail: vi.fn().mockImplementation(async (email: string) => {
+        await new Promise(resolve => setTimeout(resolve, 30));
+        const user = users.find(u => u.email === email);
+        return {
+          success: !!user,
+          data: user || null,
+          error: user ? null : 'User not found'
+        };
+      }),
+
+      // Create user
+      create: vi.fn().mockImplementation(async (userData: Partial<MockUser>) => {
+        await new Promise(resolve => setTimeout(resolve, 60));
+        
+        const newUser: MockUser = {
+          id: `user_${Date.now()}`,
+          username: userData.username || 'user',
+          email: userData.email || 'user@example.com',
+          role: userData.role || 'viewer',
+          created_at: new Date().toISOString(),
+          last_login: new Date().toISOString(),
+          preferences: userData.preferences || {
+            language: 'fa',
+            theme: 'light',
+            notifications: true
+          }
+        };
+
+        users.push(newUser);
+        
+        return {
+          success: true,
+          data: newUser
+        };
+      }),
+
+      // Update user
+      update: vi.fn().mockImplementation(async (id: string, updates: Partial<MockUser>) => {
+        await new Promise(resolve => setTimeout(resolve, 50));
+        
+        const index = users.findIndex(user => user.id === id);
+        if (index === -1) {
+          return {
+            success: false,
+            error: 'User not found'
+          };
+        }
+
+        users[index] = {
+          ...users[index],
+          ...updates
+        };
+
+        return {
+          success: true,
+          data: users[index]
+        };
+      }),
+
+      // Delete user
+      delete: vi.fn().mockImplementation(async (id: string) => {
+        await new Promise(resolve => setTimeout(resolve, 40));
+        
+        const index = users.findIndex(user => user.id === id);
+        if (index === -1) {
+          return {
+            success: false,
+            error: 'User not found'
+          };
+        }
+
+        const deletedUser = users.splice(index, 1)[0];
+        
+        return {
+          success: true,
+          data: deletedUser
+        };
+      })
+    },
+
+    // Search history
+    searchHistory: {
+      // Get search history
+      getAll: vi.fn().mockImplementation(async (userId?: string) => {
+        await new Promise(resolve => setTimeout(resolve, 30));
+        return {
+          success: true,
+          data: searchHistory,
+          total: searchHistory.length
+        };
+      }),
+
+      // Add search to history
+      add: vi.fn().mockImplementation(async (searchData: any) => {
+        await new Promise(resolve => setTimeout(resolve, 20));
+        
+        const searchEntry = {
+          id: `search_${Date.now()}`,
+          ...searchData,
+          timestamp: new Date().toISOString()
+        };
+
+        searchHistory.push(searchEntry);
+        
+        return {
+          success: true,
+          data: searchEntry
+        };
+      }),
+
+      // Clear search history
+      clear: vi.fn().mockImplementation(async (userId?: string) => {
+        await new Promise(resolve => setTimeout(resolve, 20));
+        
+        if (userId) {
+          searchHistory = searchHistory.filter(search => search.user_id !== userId);
+        } else {
+          searchHistory = [];
+        }
+        
+        return {
+          success: true,
+          data: { cleared: true }
+        };
+      })
+    },
+
+    // Utility methods
+    reset: () => {
+      documents = [...mockData.documents];
+      users = [...mockData.users];
+      searchHistory = [];
+    },
+
+    getData: () => ({
+      documents: [...documents],
+      users: [...users],
+      searchHistory: [...searchHistory]
+    }),
+
+    setData: (newData: { documents?: MockDocument[], users?: MockUser[] }) => {
+      if (newData.documents) documents = [...newData.documents];
+      if (newData.users) users = [...newData.users];
     }
+  };
+
+  return mockDB;
+};
+
+// Database error scenarios
+export const databaseErrorScenarios = {
+  // Simulate connection timeout
+  simulateTimeout: (mockDB: any) => {
+    mockDB.documents.getAll.mockImplementation(async () => {
+      await new Promise(resolve => setTimeout(resolve, 10000));
+      return { success: false, error: 'Database timeout' };
+    });
   },
-  
-  // Test connection pooling
-  testConnectionPooling: async (mock: DatabaseMock, concurrentConnections = 10) => {
-    const connections = [];
-    const start = performance.now();
-    
-    // Create concurrent connections
-    for (let i = 0; i < concurrentConnections; i++) {
-      connections.push(mock.connect());
-    }
-    
-    await Promise.all(connections);
-    const end = performance.now();
-    
-    return {
-      connectionCount: mock.getConnectionCount(),
-      duration: end - start,
-      success: true
-    };
+
+  // Simulate connection error
+  simulateConnectionError: (mockDB: any) => {
+    mockDB.documents.getAll.mockImplementation(async () => {
+      await new Promise(resolve => setTimeout(resolve, 100));
+      return { success: false, error: 'Database connection failed' };
+    });
   },
-  
-  // Test error handling
-  testErrorHandling: async (mock: DatabaseMock) => {
-    mock.setShouldFail(true);
-    
-    try {
-      await mock.connect();
-      return { success: false, error: 'Expected connection to fail' };
-    } catch (error) {
-      return { success: true, error: error.message };
-    }
+
+  // Simulate query error
+  simulateQueryError: (mockDB: any) => {
+    mockDB.documents.search.mockImplementation(async () => {
+      await new Promise(resolve => setTimeout(resolve, 50));
+      return { success: false, error: 'Query execution failed' };
+    });
   },
-  
-  // Test query validation
-  testQueryValidation: async (mock: DatabaseMock, invalidQueries: string[]) => {
-    const results = [];
-    
-    for (const query of invalidQueries) {
-      try {
-        await mock.query(query);
-        results.push({ query, success: false, error: 'Expected query to fail' });
-      } catch (error) {
-        results.push({ query, success: true, error: error.message });
-      }
-    }
-    
-    return results;
+
+  // Simulate constraint violation
+  simulateConstraintViolation: (mockDB: any) => {
+    mockDB.users.create.mockImplementation(async () => {
+      await new Promise(resolve => setTimeout(resolve, 30));
+      return { success: false, error: 'Unique constraint violation' };
+    });
   }
 };
 
-// Mock data generators
-export const mockDataGenerators = {
-  // Generate mock documents
-  generateDocuments: (count = 10) => {
-    const categories = ['قانون مدنی', 'قانون تجارت', 'قانون کار', 'قانون مجازات اسلامی'];
-    const sources = ['قوه قضائیه', 'مجلس شورای اسلامی', 'وزارت دادگستری'];
-    
-    return Array.from({ length: count }, (_, index) => ({
-      id: `doc_${index + 1}`,
-      title: `سند حقوقی ${index + 1}`,
-      content: `محتوای سند حقوقی شماره ${index + 1}`,
-      category: categories[index % categories.length],
-      source: sources[index % sources.length],
-      created_at: new Date(Date.now() - Math.random() * 10000000000).toISOString(),
+// Performance testing utilities
+export const databasePerformanceUtils = {
+  // Measure query performance
+  measureQueryTime: async (queryFn: () => Promise<any>): Promise<number> => {
+    const start = performance.now();
+    await queryFn();
+    const end = performance.now();
+    return end - start;
+  },
+
+  // Simulate concurrent queries
+  simulateConcurrentQueries: async (queryFn: () => Promise<any>, count: number = 10): Promise<any[]> => {
+    const promises = Array(count).fill(null).map(() => queryFn());
+    return Promise.all(promises);
+  },
+
+  // Simulate large dataset
+  generateLargeDataset: (size: number = 1000): MockDocument[] => {
+    return Array(size).fill(null).map((_, index) => ({
+      id: `doc_${index}`,
+      title: `مستند ${index}`,
+      content: `محتوای مستند ${index} که شامل اطلاعات حقوقی است...`,
+      category: ['قانون اساسی', 'قانون مدنی', 'قانون مجازات'][index % 3],
+      source: `منبع ${index}`,
+      url: `https://example.com/doc/${index}`,
+      created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
-      confidence: 0.8 + Math.random() * 0.2
-    }));
-  },
-  
-  // Generate mock categories
-  generateCategories: (count = 5) => {
-    const categories = ['قانون مدنی', 'قانون تجارت', 'قانون کار', 'قانون مجازات اسلامی', 'قانون اساسی'];
-    
-    return categories.slice(0, count).map((name, index) => ({
-      id: `cat_${index + 1}`,
-      name,
-      count: Math.floor(Math.random() * 1000),
-      description: `توضیحات ${name}`
-    }));
-  },
-  
-  // Generate mock sources
-  generateSources: (count = 3) => {
-    const sources = [
-      { name: 'قوه قضائیه', url: 'https://judiciary.ir' },
-      { name: 'مجلس شورای اسلامی', url: 'https://majlis.ir' },
-      { name: 'وزارت دادگستری', url: 'https://justice.gov.ir' }
-    ];
-    
-    return sources.slice(0, count).map((source, index) => ({
-      id: `src_${index + 1}`,
-      name: source.name,
-      url: source.url,
-      reliability: 0.8 + Math.random() * 0.2,
-      lastScraped: new Date().toISOString(),
-      status: 'active'
+      metadata: {
+        language: 'fa',
+        confidence: 0.8 + (Math.random() * 0.2),
+        tags: [`تگ${index}`, `برچسب${index}`],
+        entities: [
+          { text: `موضوع ${index}`, type: 'LEGAL_CONCEPT', confidence: 0.9 }
+        ]
+      }
     }));
   }
+};
+
+// Cleanup utility
+export const cleanupDatabaseMocks = (): void => {
+  vi.restoreAllMocks();
 };

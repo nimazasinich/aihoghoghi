@@ -15,6 +15,7 @@ from collections import defaultdict
 from database import DocumentDatabase
 from scraper import LegalDocumentScraper
 from ai_classifier import PersianBERTClassifier
+from auth_endpoints import auth_router
 
 # WebSocket Connection Manager
 class ConnectionManager:
@@ -117,6 +118,9 @@ app.add_middleware(
 # Add security middleware
 app.add_middleware(TrustedHostMiddleware, allowed_hosts=["*"])
 app.add_middleware(RateLimitMiddleware, calls=100, period=60)
+
+# Include authentication router
+app.include_router(auth_router, prefix="/api")
 
 # Security headers middleware
 @app.middleware("http")

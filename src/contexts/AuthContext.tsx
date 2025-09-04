@@ -22,7 +22,7 @@ type AuthAction =
 
 const initialState: AuthState = {
   user: null,
-  token: localStorage.getItem('auth_token'),
+  token: typeof localStorage !== 'undefined' ? localStorage.getItem('auth_token') : null,
   isAuthenticated: false,
   isLoading: true
 };
@@ -89,34 +89,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // Initialize authentication state
   useEffect(() => {
     const initializeAuth = async () => {
-      const token = localStorage.getItem('auth_token');
+      const token = typeof localStorage !== 'undefined' ? localStorage.getItem('auth_token') : null;
       
       if (token) {
         try {
-          // Verify token with backend
-          const response = await fetch('/api/auth/verify', {
-            headers: {
-              'Authorization': `Bearer ${token}`
+          // Verify token with backend by getting current user
+          const userData = await apiService.getCurrentUser();
+          dispatch({
+            type: 'LOGIN_SUCCESS',
+            payload: {
+              user: userData,
+              token
             }
           });
-          
-          if (response.ok) {
-            const userData = await response.json();
-            dispatch({
-              type: 'LOGIN_SUCCESS',
-              payload: {
-                user: userData.user,
-                token
-              }
-            });
-          } else {
-            // Token is invalid, remove it
-            localStorage.removeItem('auth_token');
-            dispatch({ type: 'LOGIN_FAILURE' });
-          }
         } catch (error) {
           console.error('Token verification failed:', error);
-          localStorage.removeItem('auth_token');
+          if (typeof localStorage !== 'undefined') {
+            localStorage.removeItem('auth_token');
+          }
           dispatch({ type: 'LOGIN_FAILURE' });
         }
       } else {
@@ -131,18 +121,12 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     dispatch({ type: 'LOGIN_START' });
     
     try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(credentials)
-      });
+      const data = await apiService.login(credentials);
       
-      const data = await response.json();
-      
-      if (response.ok && data.success) {
-        localStorage.setItem('auth_token', data.token);
+      if (data.success && data.token && data.user) {
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem('auth_token', data.token);
+        }
         dispatch({
           type: 'LOGIN_SUCCESS',
           payload: {
@@ -165,54 +149,35 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const register = async (data: RegisterData): Promise<{ success: boolean; message: string }> => {
     try {
-      const response = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(data)
-      });
-      
-      const result = await response.json();
-      
-      if (response.ok && result.success) {
-        return { success: true, message: result.message };
-      } else {
-        return { success: false, message: result.message || 'خطا در ثبت نام' };
-      }
+      const result = await apiService.register(data);
+      return result;
     } catch (error) {
       console.error('Registration error:', error);
       return { success: false, message: 'خطا در اتصال به سرور' };
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem('auth_token');
-    dispatch({ type: 'LOGOUT' });
-    
-    // Call logout endpoint
-    fetch('/api/auth/logout', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${state.token}`
-      }
-    }).catch(error => {
+  const logout = async () => {
+    try {
+      await apiService.logout();
+    } catch (error) {
       console.error('Logout error:', error);
-    });
+    } finally {
+      if (typeof localStorage !== 'undefined') {
+        localStorage.removeItem('auth_token');
+      }
+      dispatch({ type: 'LOGOUT' });
+    }
   };
 
   const refreshToken = async (): Promise<boolean> => {
     try {
-      const response = await fetch('/api/auth/refresh', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${state.token}`
-        }
-      });
+      const data = await apiService.refreshToken();
       
-      if (response.ok) {
-        const data = await response.json();
-        localStorage.setItem('auth_token', data.token);
+      if (data.success && data.token) {
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem('auth_token', data.token);
+        }
         dispatch({ type: 'REFRESH_TOKEN', payload: data.token });
         return true;
       }
