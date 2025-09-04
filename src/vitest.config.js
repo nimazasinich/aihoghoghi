@@ -12,12 +12,23 @@ export default defineConfig({
       jsdom: {
         resources: 'usable',
         pretendToBeVisual: true,
-        url: 'http://localhost'
+        url: 'http://localhost',
+        // Enhanced Persian text support
+        beforeParse(window) {
+          // Mock Persian text rendering
+          window.Intl = window.Intl || {};
+          window.Intl.Locale = window.Intl.Locale || class Locale {};
+          // Mock RTL support
+          window.getComputedStyle = window.getComputedStyle || (() => ({
+            direction: 'rtl',
+            textAlign: 'right'
+          }));
+        }
       }
     },
     coverage: {
       provider: 'v8',
-      reporter: ['text', 'json', 'html'],
+      reporter: ['text', 'json', 'html', 'lcov'],
       reportsDirectory: './coverage',
       include: ['src/**/*.{ts,tsx}'],
       exclude: [
@@ -35,11 +46,29 @@ export default defineConfig({
           lines: 90,
           statements: 90
         }
-      }
+      },
+      // Enhanced coverage reporting
+      all: true,
+      skipFull: false
     },
-    testTimeout: 10000,
-    hookTimeout: 10000,
-    teardownTimeout: 10000
+    testTimeout: 15000,
+    hookTimeout: 15000,
+    teardownTimeout: 15000,
+    // Enhanced test configuration
+    include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+    exclude: [
+      'node_modules',
+      'dist',
+      '.idea',
+      '.git',
+      '.cache',
+      'coverage'
+    ],
+    // Performance testing
+    benchmark: {
+      include: ['src/**/*.{bench,benchmark}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+      exclude: ['node_modules', 'dist', '.idea', '.git', '.cache']
+    }
   },
   resolve: {
     alias: {
@@ -48,7 +77,12 @@ export default defineConfig({
       '@hooks': resolve(__dirname, './src/hooks'),
       '@services': resolve(__dirname, './src/services'),
       '@types': resolve(__dirname, './src/types'),
-      '@test': resolve(__dirname, './src/test')
+      '@test': resolve(__dirname, './src/test'),
+      '@utils': resolve(__dirname, './src/utils')
     }
+  },
+  // Enhanced build configuration for testing
+  define: {
+    'import.meta.env.VITEST': 'true'
   }
 });

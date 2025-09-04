@@ -50,6 +50,36 @@ if (typeof global.document === 'undefined') {
     writable: true
   });
 
+  // Mock localStorage
+  const localStorageMock = {
+    getItem: vi.fn(),
+    setItem: vi.fn(),
+    removeItem: vi.fn(),
+    clear: vi.fn(),
+    length: 0,
+    key: vi.fn()
+  };
+
+  Object.defineProperty(global, 'localStorage', {
+    value: localStorageMock,
+    writable: true
+  });
+
+  // Mock sessionStorage
+  const sessionStorageMock = {
+    getItem: vi.fn(),
+    setItem: vi.fn(),
+    removeItem: vi.fn(),
+    clear: vi.fn(),
+    length: 0,
+    key: vi.fn()
+  };
+
+  Object.defineProperty(global, 'sessionStorage', {
+    value: sessionStorageMock,
+    writable: true
+  });
+
   Object.defineProperty(global, 'navigator', {
     value: dom.window.navigator,
     writable: true
