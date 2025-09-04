@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { X, Download, Share2, Copy, ExternalLink, Tag, Calendar, Brain, Sparkles } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatDistanceToNow } from 'date-fns';
-import { fa } from 'date-fns/locale';
+import { faIR } from 'date-fns/locale';
 import type { Document } from '../types';
 import { AIAnalysis } from './AIAnalysis';
 
@@ -160,7 +160,7 @@ export const DocumentViewer: React.FC<DocumentViewerProps> = ({
             </div>
             
             <div className="text-sm text-gray-500 text-right">
-              آخرین بروزرسانی: {formatDistanceToNow(new Date(document.scraped_at), { addSuffix: true, locale: fa })}
+              آخرین بروزرسانی: {formatDistanceToNow(new Date(document.scraped_at), { addSuffix: true, locale: faIR })}
             </div>
           </div>
 
