@@ -1,0 +1,71 @@
+{
+  "database": {
+    "status": "✅ PASSED",
+    "documents_inserted": 2,
+    "search_results": 1,
+    "total_documents": 2,
+    "database_size_mb": 0.07
+  },
+  "ai_classifier": {
+    "status": "✅ PASSED",
+    "category": "قانون اساسی",
+    "confidence": 0.5,
+    "entities_found": 1,
+    "sentiment": {
+      "positive": 0.1,
+      "negative": 0.1,
+      "neutral": 0.8
+    },
+    "models_loaded": 0
+  },
+  "proxy_manager": {
+    "status": "✅ PASSED",
+    "iranian_dns_servers": 22,
+    "cors_proxies": 7,
+    "archive_proxies": 3,
+    "health_status": {
+      "iranian_dns_servers": 22,
+      "cors_proxies": 7,
+      "archive_proxies": 3,
+      "proxy_stats": {}
+    }
+  },
+  "scraper": {
+    "status": "✅ PASSED",
+    "is_active": false,
+    "documents_processed": 0,
+    "error_count": 0,
+    "proxy_stats": {},
+    "websocket_ready": true
+  },
+  "overall": {},
+  "frontend": {
+    "status": "✅ PASSED",
+    "components_found": 6,
+    "enhanced_features": [
+      "AI Analysis Component",
+      "Real-time Dashboard",
+      "AI-powered Search"
+    ],
+    "files": [
+      "src/components/Dashboard.tsx",
+      "src/components/SearchBar.tsx",
+      "src/components/ScrapingStatus.tsx",
+      "src/components/AIAnalysis.tsx",
+      "src/components/DocumentViewer.tsx",
+      "src/App.tsx"
+    ]
+  },
+  "deployment": {
+    "status": "✅ PASSED",
+    "config_files": [
+      "vercel.json",
+      "railway.toml",
+      "Dockerfile",
+      "docker-compose.yml"
+    ],
+    "vercel_valid": true,
+    "railway_valid": true,
+    "docker_ready": true
+  }
+}

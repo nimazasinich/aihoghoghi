@@ -2,13 +2,13 @@ import aiohttp
 import asyncio
 import random
 from bs4 import BeautifulSoup
-from typing import List, Dict, Optional, AsyncGenerator, Callable
+from typing import List, Dict, Optional, AsyncGenerator, Callable, Any
 from urllib.parse import urljoin, urlparse
 import logging
 from datetime import datetime
 import ssl
 import certifi
-from .proxy_manager import AdvancedProxyManager
+from proxy_manager import AdvancedProxyManager
 
 # Target legal websites with their specific configurations
 LEGAL_SITES = {

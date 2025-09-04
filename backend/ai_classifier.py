@@ -4,8 +4,13 @@ from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
 import json
 import re
-import torch
-from transformers import pipeline, AutoTokenizer, AutoModelForSequenceClassification
+try:
+    import torch
+    from transformers import pipeline, AutoTokenizer, AutoModelForSequenceClassification
+    TRANSFORMERS_AVAILABLE = True
+except ImportError:
+    TRANSFORMERS_AVAILABLE = False
+    print("Warning: Transformers not available, using fallback classification")
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -27,7 +32,7 @@ class PersianBERTClassifier:
             "sentiment": "HooshvareLab/bert-fa-base-uncased-sentiment-digikala"
         }
         self.classifiers = {}
-        self._load_models()
+        self.logger = logging.getLogger(__name__)
         
         self.categories = {
             "قانون اساسی": ["اساسی", "قانون اساسی", "اصول", "مبانی"],
@@ -73,11 +78,16 @@ class PersianBERTClassifier:
             ]
         }
         
-        self.logger = logging.getLogger(__name__)
+        self._load_models()
         self.logger.info("Persian BERT classifier initialized")
     
     def _load_models(self):
         """Load actual transformers models"""
+        if not TRANSFORMERS_AVAILABLE:
+            self.logger.info("Transformers not available, using rule-based classification")
+            self.classifiers = {}
+            return
+            
         try:
             # Load classification model
             self.classifiers["classification"] = pipeline(
