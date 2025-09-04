@@ -10,7 +10,9 @@ export default defineConfig({
     setupFiles: ['./src/test/setup.ts'],
     environmentOptions: {
       jsdom: {
-        resources: 'usable'
+        resources: 'usable',
+        pretendToBeVisual: true,
+        url: 'http://localhost'
       }
     },
     coverage: {
