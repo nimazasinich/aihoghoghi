@@ -4,9 +4,10 @@ from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
 import json
 import re
-
-# Note: In production, you would use actual transformers library
-# For WebContainer compatibility, we'll simulate the functionality
+import torch
+from transformers import pipeline, AutoTokenizer, AutoModelForSequenceClassification
+import warnings
+warnings.filterwarnings("ignore")
 
 @dataclass
 class EntityResult:
@@ -25,6 +26,8 @@ class PersianBERTClassifier:
             "ner": "HooshvareLab/bert-fa-base-uncased-ner-peyma", 
             "sentiment": "HooshvareLab/bert-fa-base-uncased-sentiment-digikala"
         }
+        self.classifiers = {}
+        self._load_models()
         
         self.categories = {
             "قانون اساسی": ["اساسی", "قانون اساسی", "اصول", "مبانی"],
@@ -73,8 +76,54 @@ class PersianBERTClassifier:
         self.logger = logging.getLogger(__name__)
         self.logger.info("Persian BERT classifier initialized")
     
+    def _load_models(self):
+        """Load actual transformers models"""
+        try:
+            # Load classification model
+            self.classifiers["classification"] = pipeline(
+                "text-classification",
+                model=self.models["classification"],
+                tokenizer=self.models["classification"],
+                device=0 if torch.cuda.is_available() else -1
+            )
+            
+            # Load NER model
+            self.classifiers["ner"] = pipeline(
+                "ner",
+                model=self.models["ner"],
+                tokenizer=self.models["ner"],
+                device=0 if torch.cuda.is_available() else -1
+            )
+            
+            # Load sentiment model
+            self.classifiers["sentiment"] = pipeline(
+                "text-classification",
+                model=self.models["sentiment"],
+                tokenizer=self.models["sentiment"],
+                device=0 if torch.cuda.is_available() else -1
+            )
+            
+            self.logger.info("All Persian BERT models loaded successfully")
+            
+        except Exception as e:
+            self.logger.warning(f"Failed to load transformers models: {str(e)}")
+            self.logger.info("Falling back to rule-based classification")
+            self.classifiers = {}
+    
     async def classify_category(self, text: str) -> tuple[str, float]:
-        """Classify document category using keyword matching and patterns"""
+        """Classify document category using BERT model or fallback to keyword matching"""
+        # Try BERT model first
+        if "classification" in self.classifiers:
+            try:
+                # Truncate text to model's max length
+                result = self.classifiers["classification"](text[:512])
+                category = self._map_to_legal_categories(result)
+                confidence = result[0]["score"]
+                return category, confidence
+            except Exception as e:
+                self.logger.warning(f"BERT classification failed: {str(e)}")
+        
+        # Fallback to rule-based classification
         text_lower = text.lower()
         
         # Score each category based on keyword presence
@@ -103,10 +152,43 @@ class PersianBERTClassifier:
         
         return "عمومی", 0.3  # Default category with low confidence
     
+    def _map_to_legal_categories(self, bert_result: List[Dict]) -> str:
+        """Map BERT classification result to legal categories"""
+        # Map BERT labels to our legal categories
+        label_mapping = {
+            "LAW": "قوانین عادی",
+            "REGULATION": "آیین‌نامه", 
+            "VERDICT": "رأی قضایی",
+            "CONSTITUTION": "قانون اساسی",
+            "DECISION": "مصوبات",
+            "CONTRACT": "قرارداد"
+        }
+        
+        predicted_label = bert_result[0]["label"]
+        return label_mapping.get(predicted_label, "عمومی")
+    
     async def extract_entities(self, text: str) -> List[EntityResult]:
-        """Extract named entities using regex patterns"""
+        """Extract named entities using BERT NER model or fallback to regex patterns"""
         entities = []
         
+        # Try BERT NER model first
+        if "ner" in self.classifiers:
+            try:
+                ner_results = self.classifiers["ner"](text[:512])
+                for entity in ner_results:
+                    if entity["score"] > 0.5:  # Filter low confidence entities
+                        entities.append(EntityResult(
+                            text=entity["word"],
+                            label=entity["entity"],
+                            start=entity["start"],
+                            end=entity["end"],
+                            confidence=entity["score"]
+                        ))
+                return entities
+            except Exception as e:
+                self.logger.warning(f"BERT NER failed: {str(e)}")
+        
+        # Fallback to regex patterns
         for entity_type, patterns in self.entity_patterns.items():
             for pattern in patterns:
                 matches = re.finditer(pattern, text, re.IGNORECASE)
@@ -152,8 +234,25 @@ class PersianBERTClassifier:
         return non_overlapping
     
     async def analyze_sentiment(self, text: str) -> Dict[str, float]:
-        """Analyze document sentiment (positive, negative, neutral)"""
-        # Simple rule-based sentiment for Persian legal texts
+        """Analyze document sentiment using BERT model or fallback to rule-based"""
+        # Try BERT sentiment model first
+        if "sentiment" in self.classifiers:
+            try:
+                result = self.classifiers["sentiment"](text[:512])
+                sentiment_label = result[0]["label"]
+                confidence = result[0]["score"]
+                
+                # Map to our sentiment format
+                if sentiment_label == "POSITIVE":
+                    return {"positive": confidence, "negative": 0.0, "neutral": 1-confidence}
+                elif sentiment_label == "NEGATIVE":
+                    return {"positive": 0.0, "negative": confidence, "neutral": 1-confidence}
+                else:
+                    return {"positive": 0.0, "negative": 0.0, "neutral": confidence}
+            except Exception as e:
+                self.logger.warning(f"BERT sentiment analysis failed: {str(e)}")
+        
+        # Fallback to rule-based sentiment for Persian legal texts
         positive_words = ["موافق", "تأیید", "پذیرش", "موفق", "مثبت", "بهبود"]
         negative_words = ["مخالف", "رد", "منع", "محکومیت", "نفی", "اعتراض"]
         

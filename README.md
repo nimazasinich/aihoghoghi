@@ -1,237 +1,329 @@
 # Iranian Legal Archive System
 
-A comprehensive system for scraping, indexing, and searching Iranian legal documents with AI-powered classification.
+A comprehensive, production-ready system for archiving, searching, and analyzing Iranian legal documents using advanced AI and proxy technologies.
 
-## Features
+## 🚀 Features
 
-### 🔍 Advanced Search
-- Full-text search across all legal documents
-- Persian language optimized search with FTS5
-- Advanced filtering by source, category, and date
-- AI-powered relevance ranking
+### Core Functionality
+- **Advanced Document Scraping**: Intelligent scraping with 22 Iranian DNS servers and CORS proxy rotation
+- **Real Persian BERT AI**: Actual transformers models for document classification, NER, and sentiment analysis
+- **Full-Text Search**: FTS5-powered search with caching and advanced filtering
+- **Real-time Updates**: WebSocket support for live scraping progress
+- **Production Ready**: Complete deployment configurations for Vercel, Railway, and Docker
 
-### 🤖 AI-Powered Classification
-- Persian BERT models for document categorization
-- Named Entity Recognition for legal entities
-- Sentiment analysis for legal texts
-- Real-time classification during scraping
+### AI-Powered Analysis
+- **Document Classification**: Automatic categorization using Persian BERT models
+- **Named Entity Recognition**: Extract persons, organizations, laws, dates, and monetary values
+- **Sentiment Analysis**: Analyze document sentiment with confidence scores
+- **Fallback System**: Rule-based classification when AI models are unavailable
 
-### 🕸️ Intelligent Web Scraping
-- Real-time scraping from Iranian legal websites
-- Smart proxy rotation with Iranian DNS servers
-- Automatic duplicate detection and content hashing
-- Robust error handling and retry mechanisms
+### Advanced Proxy System
+- **22 Iranian DNS Servers**: Comprehensive proxy rotation for reliable access
+- **CORS Proxy Support**: Multiple CORS proxy services for cross-origin requests
+- **Archive Integration**: Web archive services as backup sources
+- **Health Monitoring**: Real-time proxy health checks and statistics
 
-### 📊 Real-time Monitoring
-- Live scraping progress tracking
-- System statistics and database metrics
-- Proxy status monitoring
-- Document processing status
+### Database & Search
+- **SQLite with FTS5**: Full-text search with Persian language support
+- **Intelligent Caching**: Query result caching with expiration
+- **Advanced Filtering**: Search by source, category, date range, sentiment
+- **Performance Optimized**: Indexed queries and bulk operations
 
-## Tech Stack
-
-### Frontend
-- **React 18** with TypeScript
-- **Vite** for fast development and building
-- **Tailwind CSS** for styling
-- **TanStack Query** for data fetching
-- **Framer Motion** for animations
-- **Lucide React** for icons
-
-### Backend
-- **FastAPI** for high-performance API
-- **SQLite** with FTS5 for full-text search
-- **aiohttp** for async web scraping
-- **BeautifulSoup4** for HTML parsing
-- **Persian BERT** models for AI classification
-
-### AI Models
-- `HooshvareLab/bert-fa-base-uncased` - Classification
-- `HooshvareLab/bert-fa-base-uncased-ner-peyma` - Named Entity Recognition
-- `HooshvareLab/bert-fa-base-uncased-sentiment-digikala` - Sentiment Analysis
-
-## Quick Start
+## 🛠️ Installation
 
 ### Prerequisites
-```bash
-# Python 3.8+
-pip install -r backend/requirements.txt
-
-# Node.js 16+
-npm install
-```
+- Python 3.9+
+- Node.js 16+ (for frontend)
+- Git
 
 ### Backend Setup
+
+1. **Clone the repository**
+```bash
+git clone <repository-url>
+cd iranian-legal-archive
+```
+
+2. **Install Python dependencies**
 ```bash
 cd backend
+pip install -r requirements.txt
+```
 
-# Initialize database and AI models
+3. **Initialize the database**
+```bash
 python startup.py
+```
 
-# Start API server
+4. **Run the development server**
+```bash
 uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 ### Frontend Setup
+
+1. **Install Node.js dependencies**
 ```bash
-# Install dependencies
 npm install
+```
 
-# Copy environment file
-cp .env.example .env
-
-# Start development server
+2. **Start the development server**
+```bash
 npm run dev
 ```
 
-### Production Deployment
+## 🐳 Docker Deployment
 
-#### Backend (Vercel Serverless)
+### Using Docker Compose
 ```bash
-# Install Vercel CLI
-npm i -g vercel
+docker-compose up -d
+```
 
-# Deploy backend
+### Using Docker directly
+```bash
+docker build -t iranian-legal-archive .
+docker run -p 8000:8000 iranian-legal-archive
+```
+
+## ☁️ Cloud Deployment
+
+### Vercel
+1. Connect your GitHub repository to Vercel
+2. Set environment variables in Vercel dashboard
+3. Deploy automatically on push
+
+### Railway
+1. Connect your GitHub repository to Railway
+2. Railway will automatically detect the `railway.toml` configuration
+3. Set environment variables in Railway dashboard
+
+## 📊 API Documentation
+
+### Core Endpoints
+
+#### Search Documents
+```http
+GET /api/documents/search?query=قانون&category=قانون اساسی&page=1&limit=10
+```
+
+#### Get Document
+```http
+GET /api/documents/{doc_id}
+```
+
+#### Start Scraping
+```http
+POST /api/scraping/start
+Content-Type: application/json
+
+{
+  "urls": ["https://rc.majlis.ir/law/123"]
+}
+```
+
+#### AI Classification
+```http
+POST /api/ai/classify
+Content-Type: application/json
+
+{
+  "text": "متن فارسی برای تحلیل"
+}
+```
+
+#### WebSocket Connection
+```javascript
+const ws = new WebSocket('ws://localhost:8000/ws');
+ws.onmessage = (event) => {
+  const data = JSON.parse(event.data);
+  console.log('Scraping update:', data);
+};
+```
+
+### System Endpoints
+
+#### Health Check
+```http
+GET /api/health
+```
+
+#### System Statistics
+```http
+GET /api/system/stats
+```
+
+#### Proxy Health
+```http
+GET /api/proxy/health
+```
+
+## 🧪 Testing
+
+### Run All Tests
+```bash
 cd backend
-vercel --prod
+python tests/run_tests.py
 ```
 
-#### Frontend (GitHub Pages)
+### Run Specific Test Suites
 ```bash
-# Build for production
-npm run build
+# Database tests
+pytest tests/test_database.py -v
 
-# Deploy to GitHub Pages
-npm run deploy
+# AI classifier tests
+pytest tests/test_ai_classifier.py -v
+
+# Proxy manager tests
+pytest tests/test_proxy_manager.py -v
+
+# Scraper tests
+pytest tests/test_scraper.py -v
+
+# API tests
+pytest tests/test_main.py -v
 ```
 
-## Architecture
-
-### Database Schema
-```sql
--- Main documents table
-CREATE TABLE documents (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    url TEXT UNIQUE NOT NULL,
-    title TEXT NOT NULL,
-    content TEXT NOT NULL,
-    source TEXT NOT NULL,
-    category TEXT,
-    scraped_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    content_hash TEXT UNIQUE NOT NULL,
-    classification_data TEXT,
-    indexed_at TIMESTAMP
-);
-
--- FTS5 full-text search
-CREATE VIRTUAL TABLE documents_fts USING fts5(
-    title, content, category, source,
-    content='documents',
-    content_rowid='id',
-    tokenize='porter'
-);
+### Test Coverage
+```bash
+pytest --cov=backend --cov-report=html
 ```
 
-### API Endpoints
+## 🔧 Configuration
 
-#### Search & Documents
-- `GET /api/documents/search` - Search documents with filters
-- `GET /api/documents/{id}` - Get single document
-- `GET /api/documents/categories` - List all categories
-- `GET /api/documents/sources` - List all sources
+### Environment Variables
 
-#### Scraping Control
-- `POST /api/scraping/start` - Start scraping process
-- `POST /api/scraping/stop` - Stop scraping
-- `GET /api/scraping/status` - Get scraping status
+```bash
+# Database
+DATABASE_URL=sqlite:///data/legal_archive.db
 
-#### AI Services
-- `POST /api/ai/classify` - Classify Persian text
-- `GET /api/system/stats` - System statistics
+# AI Models
+HUGGINGFACE_API_KEY=your_huggingface_key
 
-## Targeted Legal Sites
+# Security
+SECRET_KEY=your_secret_key
+ALLOWED_HOSTS=localhost,127.0.0.1
 
-### Primary Sources
-1. **rc.majlis.ir** - مرکز پژوهش‌های مجلس شورای اسلامی
-   - Laws and regulations
-   - Parliamentary research documents
-   - Legislative drafts and amendments
+# Rate Limiting
+RATE_LIMIT_CALLS=100
+RATE_LIMIT_PERIOD=60
+```
 
-2. **divan-edalat.ir** - دیوان عدالت اداری
-   - Administrative court verdicts
-   - Judicial decisions
-   - Legal precedents
+### Legal Sites Configuration
 
-3. **ijudiciary.ir** - قوه قضائیه
-   - Judiciary announcements
-   - Court procedures
-   - Legal interpretations
+The system is pre-configured to scrape from major Iranian legal websites:
 
-### Proxy Configuration
-The system uses Iranian DNS servers for reliable access:
+- **rc.majlis.ir**: مرکز پژوهش‌های مجلس (Parliamentary Research Center)
+- **divan-edalat.ir**: دیوان عدالت اداری (Administrative Justice Court)
+- **ijudiciary.ir**: قوه قضائیه (Judiciary)
+
+## 📈 Performance
+
+### Database Optimization
+- FTS5 full-text search with Persian tokenization
+- Intelligent query caching with 1-hour expiration
+- Optimized indexes for common queries
+- Bulk insert operations for efficiency
+
+### Proxy Performance
+- 22 Iranian DNS servers for redundancy
+- Automatic failover and rotation
+- Health monitoring and statistics
+- Request rate limiting and retry logic
+
+### AI Model Performance
+- GPU acceleration when available
+- Fallback to CPU processing
+- Batch processing for multiple documents
+- Model loading optimization
+
+## 🔒 Security
+
+### Implemented Security Measures
+- **CORS Configuration**: Restricted to trusted origins
+- **Rate Limiting**: 100 requests per minute per IP
+- **Security Headers**: XSS protection, content type validation
+- **Input Validation**: Pydantic models for all endpoints
+- **SQL Injection Protection**: Parameterized queries
+- **HTTPS Enforcement**: Strict transport security headers
+
+### Authentication (Future Enhancement)
 ```python
-IRANIAN_DNS_SERVERS = [
-    "178.22.122.100",  # Shecan Primary
-    "185.51.200.2",    # Begzar Primary  
-    "10.202.10.202",   # Pishgaman
-    "178.22.122.101",  # Shecan Secondary
-    "185.51.200.3",    # Begzar Secondary
-]
+# JWT-based authentication (to be implemented)
+@app.post("/api/auth/login")
+async def login(credentials: LoginRequest):
+    # Implementation pending
+    pass
 ```
 
-## Development
+## 📊 Monitoring
 
-### Running Tests
-```bash
-# Backend tests
-cd backend
-python -m pytest tests/
+### System Statistics
+- Document count and categories
+- Scraping progress and success rates
+- Proxy health and performance
+- Database size and query performance
+- WebSocket connection count
 
-# Frontend tests  
-npm test
-```
+### Logging
+- Structured logging with different levels
+- Request/response logging
+- Error tracking and reporting
+- Performance metrics
 
-### Adding New Legal Sites
-1. Add site configuration to `scraper.py`
-2. Define document selectors for title/content extraction
-3. Configure pagination patterns
-4. Test scraping with small sample
-
-### Customizing AI Models
-1. Update model names in `ai_classifier.py`
-2. Adjust classification categories
-3. Modify entity extraction patterns
-4. Fine-tune confidence thresholds
-
-## Production Considerations
-
-### Security
-- Enable HTTPS for all endpoints
-- Configure proper CORS origins
-- Use environment variables for sensitive data
-- Implement rate limiting
-
-### Performance
-- Database indexing for common queries
-- Caching for frequent searches
-- CDN for static assets
-- Connection pooling for database
-
-### Monitoring
-- Log aggregation for error tracking
-- Performance metrics collection
-- Uptime monitoring for scraped sites
-- Database backup strategies
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
-## Contributing
+## 🤝 Contributing
 
 1. Fork the repository
-2. Create a feature branch
-3. Make your changes with tests
-4. Submit a pull request
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-For issues and feature requests, please use the GitHub issue tracker.
+### Development Guidelines
+- Follow PEP 8 for Python code
+- Write comprehensive tests for new features
+- Update documentation for API changes
+- Use type hints for better code clarity
+
+## 📝 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- **HooshvareLab**: Persian BERT models for NLP tasks
+- **FastAPI**: Modern, fast web framework for building APIs
+- **SQLite**: Lightweight, serverless database engine
+- **BeautifulSoup**: HTML parsing and data extraction
+
+## 📞 Support
+
+For support and questions:
+- Create an issue in the GitHub repository
+- Check the API documentation at `/docs` when running the server
+- Review the test files for usage examples
+
+## 🗺️ Roadmap
+
+### Phase 1 (Completed)
+- ✅ Real Persian BERT AI implementation
+- ✅ Advanced proxy system with 22 DNS servers
+- ✅ Enhanced database with FTS5 and caching
+- ✅ WebSocket real-time updates
+- ✅ Production deployment configurations
+- ✅ Comprehensive test suite
+
+### Phase 2 (In Progress)
+- 🔄 Authentication and authorization
+- 🔄 Advanced analytics dashboard
+- 🔄 Document similarity and clustering
+- 🔄 Export functionality (PDF, Excel)
+
+### Phase 3 (Planned)
+- 📋 Machine learning model training
+- 📋 Multi-language support
+- 📋 Mobile application
+- 📋 Advanced search filters and faceting
+
+---
+
+**Built with ❤️ for the Iranian legal community**

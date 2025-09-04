@@ -2,23 +2,13 @@ import aiohttp
 import asyncio
 import random
 from bs4 import BeautifulSoup
-from typing import List, Dict, Optional, AsyncGenerator
+from typing import List, Dict, Optional, AsyncGenerator, Callable
 from urllib.parse import urljoin, urlparse
 import logging
 from datetime import datetime
 import ssl
 import certifi
-
-# Iranian DNS servers for proxy rotation
-IRANIAN_DNS_SERVERS = [
-    "178.22.122.100",  # Shecan Primary
-    "185.51.200.2",    # Begzar Primary  
-    "10.202.10.202",   # Pishgaman
-    "178.22.122.101",  # Shecan Secondary
-    "185.51.200.3",    # Begzar Secondary
-    "185.43.135.1",    # Radar Game
-    "178.22.122.102"   # Shecan Tertiary
-]
+from .proxy_manager import AdvancedProxyManager
 
 # Target legal websites with their specific configurations
 LEGAL_SITES = {
@@ -57,38 +47,13 @@ LEGAL_SITES = {
     }
 }
 
-class ProxyRotator:
-    def __init__(self):
-        self.dns_servers = IRANIAN_DNS_SERVERS.copy()
-        self.current_dns = None
-        self.failed_dns = set()
-        
-    def get_current_dns(self) -> str:
-        """Get current DNS server, rotate if needed"""
-        if self.current_dns and self.current_dns not in self.failed_dns:
-            return self.current_dns
-        
-        available_dns = [dns for dns in self.dns_servers if dns not in self.failed_dns]
-        
-        if not available_dns:
-            # Reset failed DNS if all have failed
-            self.failed_dns.clear()
-            available_dns = self.dns_servers
-        
-        self.current_dns = random.choice(available_dns)
-        return self.current_dns
-    
-    def mark_dns_failed(self, dns: str):
-        """Mark DNS server as failed"""
-        self.failed_dns.add(dns)
-        if dns == self.current_dns:
-            self.current_dns = None
+# Removed ProxyRotator class - now using AdvancedProxyManager
 
 class LegalDocumentScraper:
     def __init__(self, database, ai_classifier=None):
         self.database = database
         self.ai_classifier = ai_classifier
-        self.proxy_rotator = ProxyRotator()
+        self.proxy_manager = AdvancedProxyManager()
         self.session = None
         self.is_scraping = False
         self.current_url = ""
@@ -96,6 +61,7 @@ class LegalDocumentScraper:
         self.total_documents = 0
         self.error_count = 0
         self.last_update = datetime.now().isoformat()
+        self.progress_callback = None
         
         # Configure logging
         logging.basicConfig(level=logging.INFO)
@@ -128,29 +94,15 @@ class LegalDocumentScraper:
         )
     
     async def fetch_with_retry(self, url: str, max_retries: int = 3) -> Optional[str]:
-        """Fetch URL with retry logic and proxy rotation"""
-        for attempt in range(max_retries):
-            try:
-                current_dns = self.proxy_rotator.get_current_dns()
-                
-                async with self.session.get(url) as response:
-                    if response.status == 200:
-                        content = await response.text()
-                        return content
-                    elif response.status in [403, 429, 503]:
-                        # Rate limited or blocked, try different DNS
-                        self.proxy_rotator.mark_dns_failed(current_dns)
-                        await asyncio.sleep(random.uniform(5, 10))
-                    else:
-                        self.logger.warning(f"HTTP {response.status} for {url}")
-                        
-            except Exception as e:
-                self.logger.error(f"Attempt {attempt + 1} failed for {url}: {str(e)}")
-                self.proxy_rotator.mark_dns_failed(self.proxy_rotator.current_dns)
-                await asyncio.sleep(random.uniform(2, 5))
+        """Fetch URL with retry logic and advanced proxy rotation"""
+        result = await self.proxy_manager.fetch_with_rotation(url, max_retries)
         
-        self.error_count += 1
-        return None
+        if result["success"]:
+            return result["content"]
+        else:
+            self.error_count += 1
+            self.logger.error(f"Failed to fetch {url}: {result.get('error', 'Unknown error')}")
+            return None
     
     def extract_document_data(self, html: str, url: str, site_config: Dict) -> Optional[Dict[str, str]]:
         """Extract document data from HTML using site-specific selectors"""
@@ -239,7 +191,7 @@ class LegalDocumentScraper:
         return any(indicator in url_lower for indicator in document_indicators)
     
     async def scrape_document(self, url: str, site_config: Dict) -> bool:
-        """Scrape single document"""
+        """Scrape single document with enhanced processing"""
         self.current_url = url
         
         try:
@@ -253,27 +205,60 @@ class LegalDocumentScraper:
             
             # Classify document using AI if available
             classification = None
+            entities = []
+            sentiment = None
+            confidence = None
+            
             if self.ai_classifier:
                 try:
                     classification = await self.ai_classifier.classify_document(
                         doc_data['content']
                     )
+                    
+                    # Extract individual components
+                    entities = classification.get('entities', [])
+                    sentiment_data = classification.get('sentiment', {})
+                    sentiment = sentiment_data.get('positive', 0) - sentiment_data.get('negative', 0)
+                    confidence = classification.get('confidence', 0.5)
+                    
                 except Exception as e:
                     self.logger.error(f"AI classification failed: {str(e)}")
             
-            # Insert into database
+            # Prepare metadata
+            metadata = {
+                "scraping_method": "advanced_proxy",
+                "content_length": len(doc_data['content']),
+                "processing_time": datetime.now().isoformat(),
+                "site_config": site_config['name']
+            }
+            
+            # Insert into database with enhanced schema
             success = await self.database.insert_document(
                 url=doc_data['url'],
                 title=doc_data['title'],
                 content=doc_data['content'],
                 source=doc_data['source'],
                 category=doc_data['category'],
-                classification=classification
+                classification=classification,
+                entities=entities,
+                sentiment=sentiment,
+                confidence=confidence,
+                metadata=metadata
             )
             
             if success:
                 self.documents_processed += 1
                 self.logger.info(f"Successfully scraped: {doc_data['title'][:100]}")
+                
+                # Call progress callback if available
+                if self.progress_callback:
+                    await self.progress_callback({
+                        "status": "completed",
+                        "url": url,
+                        "title": doc_data['title'],
+                        "processed": self.documents_processed,
+                        "total": self.total_documents
+                    })
             
             # Add delay between requests
             delay = random.uniform(*site_config['delay'])
@@ -284,6 +269,15 @@ class LegalDocumentScraper:
         except Exception as e:
             self.logger.error(f"Error scraping {url}: {str(e)}")
             self.error_count += 1
+            
+            # Call progress callback for errors
+            if self.progress_callback:
+                await self.progress_callback({
+                    "status": "error",
+                    "url": url,
+                    "error": str(e)
+                })
+            
             return False
         finally:
             self.last_update = datetime.now().isoformat()
@@ -324,8 +318,12 @@ class LegalDocumentScraper:
         
         return successful_scrapes
     
-    async def start_scraping(self, target_urls: List[str] = None):
-        """Start scraping process"""
+    def set_progress_callback(self, callback: Callable):
+        """Set callback function for progress updates"""
+        self.progress_callback = callback
+    
+    async def start_scraping(self, target_urls: List[str] = None, progress_callback: Callable = None):
+        """Start scraping process with progress updates"""
         if self.is_scraping:
             return
         
@@ -333,9 +331,15 @@ class LegalDocumentScraper:
         self.documents_processed = 0
         self.total_documents = 0
         self.error_count = 0
+        self.progress_callback = progress_callback
         
         try:
-            self.session = await self.create_session()
+            # Notify start
+            if self.progress_callback:
+                await self.progress_callback({
+                    "status": "started",
+                    "message": "Scraping process started"
+                })
             
             if target_urls:
                 # Scrape specific URLs
@@ -347,13 +351,29 @@ class LegalDocumentScraper:
                 # Scrape all configured sites
                 for domain in LEGAL_SITES:
                     await self.scrape_site(domain)
+            
+            # Notify completion
+            if self.progress_callback:
+                await self.progress_callback({
+                    "status": "completed",
+                    "message": f"Scraping completed. Processed {self.documents_processed} documents.",
+                    "processed": self.documents_processed,
+                    "total": self.total_documents,
+                    "errors": self.error_count
+                })
                     
         except Exception as e:
             self.logger.error(f"Scraping error: {str(e)}")
             self.error_count += 1
+            
+            # Notify error
+            if self.progress_callback:
+                await self.progress_callback({
+                    "status": "error",
+                    "message": f"Scraping failed: {str(e)}",
+                    "error": str(e)
+                })
         finally:
-            if self.session:
-                await self.session.close()
             self.is_scraping = False
     
     def stop_scraping(self):
@@ -362,12 +382,8 @@ class LegalDocumentScraper:
         self.current_url = ""
     
     def get_status(self) -> Dict[str, Any]:
-        """Get current scraping status"""
-        proxy_status = 'active'
-        if self.proxy_rotator.current_dns in self.proxy_rotator.failed_dns:
-            proxy_status = 'failed'
-        elif len(self.proxy_rotator.failed_dns) > 0:
-            proxy_status = 'rotating'
+        """Get current scraping status with enhanced information"""
+        proxy_stats = self.proxy_manager.get_proxy_stats()
         
         return {
             "isActive": self.is_scraping,
@@ -376,5 +392,6 @@ class LegalDocumentScraper:
             "totalDocuments": self.total_documents,
             "errorCount": self.error_count,
             "lastUpdate": self.last_update,
-            "proxyStatus": proxy_status
+            "proxyStats": proxy_stats,
+            "successRate": (self.documents_processed / max(self.total_documents, 1)) * 100
         }

@@ -1,0 +1,35 @@
+{
+  "version": 2,
+  "functions": {
+    "backend/main.py": {
+      "runtime": "python3.9",
+      "maxDuration": 60
+    }
+  },
+  "routes": [
+    {"src": "/api/(.*)", "dest": "/backend/main.py"},
+    {"src": "/ws", "dest": "/backend/main.py"},
+    {"src": "/(.*)", "dest": "/index.html"}
+  ],
+  "env": {
+    "DATABASE_URL": "@database_url",
+    "HUGGINGFACE_API_KEY": "@huggingface_key",
+    "PYTHONPATH": "/var/task/backend"
+  },
+  "builds": [
+    {
+      "src": "backend/main.py",
+      "use": "@vercel/python"
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/backend/main.py"
+    },
+    {
+      "source": "/ws",
+      "destination": "/backend/main.py"
+    }
+  ]
+}
